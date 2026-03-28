@@ -84,7 +84,7 @@ wheels = [
 ]
 
 [[package]]
-name = "kanji-meaning"
+name = "kanji-phonetic-components"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

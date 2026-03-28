@@ -343,7 +343,7 @@ def find_radical_paths(svg_root):
     # Search all g elements for kvg:radical="general"
     for g in svg_root.iter("{http://www.w3.org/2000/svg}g"):
         radical_attr = g.get(f"{{{KVG_NS}}}radical")
-        if radical_attr == "general":
+        if radical_attr:
             for path in g.iter("{http://www.w3.org/2000/svg}path"):
                 path_id = path.get("id")
                 if path_id:
