@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kanji Components</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Kanji Components</h1>
+    <p class="subtitle">Search kanji and see their <span class="color-radical">meaning (radical)</span> and <span class="color-phonetic">sound (phonetic)</span> components</p>
+    <div class="search-box">
+      <input type="text" id="search" placeholder="Search by kanji, meaning, or reading..." autofocus>
+    </div>
+  </header>
+
+  <nav class="browse-tabs">
+    <button class="tab active" data-tab="search">Search</button>
+    <button class="tab" data-tab="grade">Grade</button>
+    <button class="tab" data-tab="jlpt">JLPT</button>
+    <button class="tab" data-tab="radical">Radical</button>
+    <button class="tab" data-tab="phonetic">Phonetic</button>
+  </nav>
+
+  <main>
+    <div id="panel-search" class="panel active">
+      <div id="results" class="kanji-grid"></div>
+    </div>
+
+    <div id="panel-grade" class="panel">
+      <div class="filter-buttons" id="grade-buttons"></div>
+      <div id="grade-results" class="kanji-grid"></div>
+    </div>
+
+    <div id="panel-jlpt" class="panel">
+      <div class="filter-buttons" id="jlpt-buttons"></div>
+      <div id="jlpt-results" class="kanji-grid"></div>
+    </div>
+
+    <div id="panel-radical" class="panel">
+      <div id="radical-list" class="radical-grid"></div>
+      <div id="radical-results" class="kanji-grid"></div>
+    </div>
+
+    <div id="panel-phonetic" class="panel">
+      <div id="phonetic-list" class="phonetic-grid"></div>
+      <div id="phonetic-results" class="kanji-grid"></div>
+    </div>
+  </main>
+
+  <div id="detail-overlay" class="overlay hidden">
+    <div class="detail-card">
+      <button class="close-btn" id="close-detail">&times;</button>
+      <div class="detail-content" id="detail-content"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0/dist/fuse.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
