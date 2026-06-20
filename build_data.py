@@ -337,26 +337,40 @@ def expand_phonetics(kanji_db, kanji_to_phonetic, phonetic_info):
 # and the Nelson radical). Prefer the standard classical radical when choosing.
 RADICAL_PRIORITY = ["general", "tradit", "nelson", "jis"]
 
+# KanjiVG element/original forms that KANJIDIC2 records under a different (usually
+# shinjitai) Kangxi character. Normalising both sides lets us match by radical.
+RADICAL_FORM_ALIASES = {
+    "辶": "辵", "⻌": "辵", "⻍": "辵",
+    "齒": "歯", "齊": "斉", "龍": "竜", "麥": "麦", "龜": "亀",
+    "彑": "彐", "爿": "丬", "飠": "食", "⻞": "食", "夂": "夊",
+}
+
+
+def _normalize_radical(char):
+    return RADICAL_FORM_ALIASES.get(char, char)
+
 
 def find_radical_paths(svg_root, radical_char=None):
     """Find the path ids of the single group representing the kanji's radical.
 
     A kanji like 辞 tags both 舌 (nelson) and 辛 (tradit) with kvg:radical, which
     would colour nearly the whole character. We pick one group: the one whose
-    element matches the kanji's classical radical char if known, otherwise the
-    highest-priority radical type.
+    element (or KanjiVG's kvg:original form) matches the kanji's classical radical,
+    otherwise the highest-priority radical type.
     """
     candidates = []
     for g in svg_root.iter("{http://www.w3.org/2000/svg}g"):
         rad_type = g.get(f"{{{KVG_NS}}}radical")
         if rad_type:
-            candidates.append((g, rad_type, g.get(f"{{{KVG_NS}}}element")))
+            forms = {_normalize_radical(f) for f in (g.get(f"{{{KVG_NS}}}element"), g.get(f"{{{KVG_NS}}}original")) if f}
+            candidates.append((g, rad_type, forms))
     if not candidates:
         return set()
 
     chosen = None
     if radical_char:
-        chosen = next((g for g, _, el in candidates if el == radical_char), None)
+        target = _normalize_radical(radical_char)
+        chosen = next((g for g, _, forms in candidates if target in forms), None)
     if chosen is None:
         candidates.sort(
             key=lambda c: RADICAL_PRIORITY.index(c[1]) if c[1] in RADICAL_PRIORITY else len(RADICAL_PRIORITY)
