@@ -354,9 +354,11 @@ def find_radical_paths(svg_root, radical_char=None):
     """Find the path ids of the single group representing the kanji's radical.
 
     A kanji like 辞 tags both 舌 (nelson) and 辛 (tradit) with kvg:radical, which
-    would colour nearly the whole character. We pick one group: the one whose
+    would colour nearly the whole character. We pick one radical: the one whose
     element (or KanjiVG's kvg:original form) matches the kanji's classical radical,
-    otherwise the highest-priority radical type.
+    otherwise the highest-priority radical type. An enclosing radical can be split
+    across several groups (e.g. 国's 囗 is part 1 + part 2), so we gather every
+    group sharing the chosen radical's form, not just the first.
     """
     candidates = []
     for g in svg_root.iter("{http://www.w3.org/2000/svg}g"):
@@ -367,17 +369,22 @@ def find_radical_paths(svg_root, radical_char=None):
     if not candidates:
         return set()
 
-    chosen = None
+    target_forms = None
     if radical_char:
         target = _normalize_radical(radical_char)
-        chosen = next((g for g, _, forms in candidates if target in forms), None)
-    if chosen is None:
+        if any(target in forms for _, _, forms in candidates):
+            target_forms = {target}
+    if target_forms is None:
         candidates.sort(
             key=lambda c: RADICAL_PRIORITY.index(c[1]) if c[1] in RADICAL_PRIORITY else len(RADICAL_PRIORITY)
         )
-        chosen = candidates[0][0]
+        target_forms = candidates[0][2]
 
-    return {p.get("id") for p in chosen.iter("{http://www.w3.org/2000/svg}path") if p.get("id")}
+    paths = set()
+    for g, _, forms in candidates:
+        if forms & target_forms:
+            paths.update(p.get("id") for p in g.iter("{http://www.w3.org/2000/svg}path") if p.get("id"))
+    return paths
 
 
 def find_phonetic_paths(svg_root, phonetic_char):
