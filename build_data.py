@@ -441,6 +441,64 @@ def colorize_svg(svg_path, phonetic_char=None, radical_char=None):
     return etree.tostring(root, encoding="unicode", pretty_print=False)
 
 
+# Hepburn romanization tables (hiragana; katakana is normalised to hiragana first).
+ROMAJI_YOON = {
+    "きゃ": "kya", "きゅ": "kyu", "きょ": "kyo", "しゃ": "sha", "しゅ": "shu", "しょ": "sho",
+    "ちゃ": "cha", "ちゅ": "chu", "ちょ": "cho", "にゃ": "nya", "にゅ": "nyu", "にょ": "nyo",
+    "ひゃ": "hya", "ひゅ": "hyu", "ひょ": "hyo", "みゃ": "mya", "みゅ": "myu", "みょ": "myo",
+    "りゃ": "rya", "りゅ": "ryu", "りょ": "ryo", "ぎゃ": "gya", "ぎゅ": "gyu", "ぎょ": "gyo",
+    "じゃ": "ja", "じゅ": "ju", "じょ": "jo", "ぢゃ": "ja", "ぢゅ": "ju", "ぢょ": "jo",
+    "びゃ": "bya", "びゅ": "byu", "びょ": "byo", "ぴゃ": "pya", "ぴゅ": "pyu", "ぴょ": "pyo",
+}
+ROMAJI = {
+    "あ": "a", "い": "i", "う": "u", "え": "e", "お": "o",
+    "か": "ka", "き": "ki", "く": "ku", "け": "ke", "こ": "ko",
+    "さ": "sa", "し": "shi", "す": "su", "せ": "se", "そ": "so",
+    "た": "ta", "ち": "chi", "つ": "tsu", "て": "te", "と": "to",
+    "な": "na", "に": "ni", "ぬ": "nu", "ね": "ne", "の": "no",
+    "は": "ha", "ひ": "hi", "ふ": "fu", "へ": "he", "ほ": "ho",
+    "ま": "ma", "み": "mi", "む": "mu", "め": "me", "も": "mo",
+    "や": "ya", "ゆ": "yu", "よ": "yo",
+    "ら": "ra", "り": "ri", "る": "ru", "れ": "re", "ろ": "ro",
+    "わ": "wa", "ゐ": "wi", "ゑ": "we", "を": "o", "ん": "n",
+    "が": "ga", "ぎ": "gi", "ぐ": "gu", "げ": "ge", "ご": "go",
+    "ざ": "za", "じ": "ji", "ず": "zu", "ぜ": "ze", "ぞ": "zo",
+    "だ": "da", "ぢ": "ji", "づ": "zu", "で": "de", "ど": "do",
+    "ば": "ba", "び": "bi", "ぶ": "bu", "べ": "be", "ぼ": "bo",
+    "ぱ": "pa", "ぴ": "pi", "ぷ": "pu", "ぺ": "pe", "ぽ": "po",
+    "ゔ": "vu", "ぁ": "a", "ぃ": "i", "ぅ": "u", "ぇ": "e", "ぉ": "o",
+    "ゃ": "ya", "ゅ": "yu", "ょ": "yo", "ゎ": "wa",
+}
+
+
+def kana_to_romaji(reading):
+    """Romanize a single kanji reading (Hepburn), ignoring okurigana markers."""
+    text = reading.replace(".", "").replace("-", "").replace("・", "")
+    # Normalise katakana to hiragana so one table covers both; keep ー (chōonpu).
+    chars = [chr(ord(c) - 0x60) if 0x30A1 <= ord(c) <= 0x30F6 else c for c in text]
+
+    out = []
+    i = 0
+    while i < len(chars):
+        pair = "".join(chars[i : i + 2])
+        if pair in ROMAJI_YOON:
+            out.append(ROMAJI_YOON[pair])
+            i += 2
+        elif chars[i] == "っ":  # small tsu: geminate the next consonant
+            nxt = ROMAJI.get(chars[i + 1], "") if i + 1 < len(chars) else ""
+            if nxt and nxt[0] not in "aeiou":
+                out.append(nxt[0])
+            i += 1
+        elif chars[i] == "ー":  # long vowel: repeat the previous vowel
+            if out and out[-1][-1] in "aeiou":
+                out.append(out[-1][-1])
+            i += 1
+        else:
+            out.append(ROMAJI.get(chars[i], ""))
+            i += 1
+    return "".join(out)
+
+
 def build_site(kanji_db, kanji_to_phonetic, phonetic_info, kanji_to_components):
     """Generate all static site data files."""
     print("Building site data...")
@@ -525,6 +583,9 @@ def build_site(kanji_db, kanji_to_phonetic, phonetic_info, kanji_to_components):
         out_path = KANJI_OUT_DIR / f"{codepoint}.json"
         out_path.write_text(json.dumps(kanji_entry, ensure_ascii=False), encoding="utf-8")
 
+        # Romanized readings for romaji search (e.g. "mizu" -> 水)
+        romaji = " ".join(dict.fromkeys(kana_to_romaji(r) for r in info["on"] + info["kun"]))
+
         # Add to search index (compact)
         search_index.append({
             "c": char,
@@ -532,6 +593,7 @@ def build_site(kanji_db, kanji_to_phonetic, phonetic_info, kanji_to_components):
             "m": ", ".join(info["meanings"][:3]),
             "on": ", ".join(info["on"][:3]),
             "kun": ", ".join(info["kun"][:2]),
+            "rom": romaji,
             "g": info["grade"],
             "j": info["jlpt"],
             "f": info["freq"],

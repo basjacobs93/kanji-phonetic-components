@@ -39,7 +39,7 @@ The `site/` folder is a self-contained static site deployable to GitHub Pages or
 
 ## Features
 
-- Search by kanji character, English meaning, or Japanese reading
+- Search by kanji character, English meaning, or Japanese reading (kana or romaji, e.g. `mizu`)
 - Browse by school grade, JLPT level, radical, or phonetic component
 - Click any kanji to see its colored SVG with component legend
 - Navigate to related kanji sharing the same phonetic component

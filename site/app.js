@@ -23,6 +23,7 @@ async function init() {
       { name: "m", weight: 2 },
       { name: "on", weight: 1.5 },
       { name: "kun", weight: 1 },
+      { name: "rom", weight: 1 },
     ],
     threshold: 0.3,
     includeScore: true,
@@ -110,7 +111,7 @@ function setupGrade() {
 
 function setupJlpt() {
   const levels = [
-    { value: 4, label: "N5 (easiest)" },
+    { value: 4, label: "N5" },
     { value: 3, label: "N4" },
     { value: 2, label: "N3" },
     { value: 1, label: "N2" },
