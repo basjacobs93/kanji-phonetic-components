@@ -157,6 +157,14 @@ main {
   grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
   gap: 0.4rem;
   margin-bottom: 1.5rem;
+  /* The full list is long (200+ entries); cap it so the selected results
+     stay visible below instead of being pushed off-screen. */
+  max-height: 38vh;
+  overflow-y: auto;
+  padding: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
 }
 
 .radical-btn, .phonetic-btn {
@@ -305,6 +313,18 @@ main {
   font-size: 1.3rem;
   font-weight: 500;
 }
+
+.legend-link {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: inherit;
+  font-family: inherit;
+  border-bottom: 1px dashed currentColor;
+}
+
+.legend-link:hover { color: var(--accent); }
 
 .legend-label {
   font-size: 0.85rem;

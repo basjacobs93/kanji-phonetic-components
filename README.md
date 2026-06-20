@@ -8,6 +8,10 @@ A static web app for searching and browsing kanji with their components color-co
 
 Uses [KanjiVG](https://kanjivg.tagaini.net/) SVG stroke data to color actual strokes within each kanji glyph.
 
+## Coverage
+
+The site includes the ~6,400 kanji that KanjiVG provides stroke data for (out of KANJIDIC2's ~13,100). This covers every frequency-ranked kanji — all 2,500 of the most common kanji are present — so the omitted ones are rare or variant (kyūjitai) forms without a KanjiVG glyph.
+
 ## Data sources
 
 - [EDRDG Kanji Phonetics](https://www.edrdg.org/~jwb/kanjiphonetics/) — 150 phonetic component mappings

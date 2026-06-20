@@ -36,23 +36,25 @@ async function init() {
   setupPhonetics();
   setupDetail();
 
-  // Show some initial kanji (most frequent)
-  const initial = searchIndex
+  renderGrid(mostFrequent(), "#results");
+}
+
+function mostFrequent(n = 100) {
+  return searchIndex
     .filter((k) => k.f)
     .sort((a, b) => a.f - b.f)
-    .slice(0, 100);
-  renderGrid(initial, "#results");
+    .slice(0, n);
+}
+
+function selectTab(name) {
+  $$(".tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === name));
+  $$(".panel").forEach((p) => p.classList.toggle("active", p.id === `panel-${name}`));
+  if (name === "search") $("#search").focus();
 }
 
 function setupTabs() {
   $$(".tab").forEach((tab) => {
-    tab.addEventListener("click", () => {
-      $$(".tab").forEach((t) => t.classList.remove("active"));
-      $$(".panel").forEach((p) => p.classList.remove("active"));
-      tab.classList.add("active");
-      $(`#panel-${tab.dataset.tab}`).classList.add("active");
-      if (tab.dataset.tab === "search") $("#search").focus();
-    });
+    tab.addEventListener("click", () => selectTab(tab.dataset.tab));
   });
 }
 
@@ -63,11 +65,7 @@ function setupSearch() {
     timeout = setTimeout(() => {
       const query = e.target.value.trim();
       if (!query) {
-        const initial = searchIndex
-          .filter((k) => k.f)
-          .sort((a, b) => a.f - b.f)
-          .slice(0, 100);
-        renderGrid(initial, "#results");
+        renderGrid(mostFrequent(), "#results");
         return;
       }
       // Direct character match first
@@ -139,6 +137,8 @@ function setupRadicals() {
   radicalsData.forEach((r) => {
     const btn = document.createElement("button");
     btn.className = "radical-btn";
+    btn.dataset.radn = r.n;
+    btn.title = `#${r.n} ${r.name} (${r.count} kanji)`;
     btn.innerHTML = `<span class="char">${r.c}</span><span class="count">${r.count}</span>`;
     btn.addEventListener("click", () => {
       container.querySelectorAll(".radical-btn").forEach((b) => b.classList.remove("active"));
@@ -147,6 +147,7 @@ function setupRadicals() {
         .filter((k) => k.r === r.n)
         .sort((a, b) => (a.f || 9999) - (b.f || 9999));
       renderGrid(results, "#radical-results");
+      $("#radical-results").scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
     container.appendChild(btn);
   });
@@ -157,6 +158,8 @@ function setupPhonetics() {
   phoneticsData.forEach((p) => {
     const btn = document.createElement("button");
     btn.className = "phonetic-btn";
+    btn.dataset.phon = p.char;
+    btn.title = `${p.reading} "${p.name}" — ${p.type} (${p.count} kanji)`;
     btn.innerHTML = `<span class="char">${p.char}</span><span class="count">${p.reading}</span>`;
     btn.addEventListener("click", () => {
       container.querySelectorAll(".phonetic-btn").forEach((b) => b.classList.remove("active"));
@@ -165,9 +168,20 @@ function setupPhonetics() {
         .filter((k) => k.p === p.char)
         .sort((a, b) => (a.f || 9999) - (b.f || 9999));
       renderGrid(results, "#phonetic-results");
+      $("#phonetic-results").scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
     container.appendChild(btn);
   });
+}
+
+function browseRadical(n) {
+  selectTab("radical");
+  $(`#radical-list .radical-btn[data-radn="${n}"]`)?.click();
+}
+
+function browsePhonetic(char) {
+  selectTab("phonetic");
+  $(`#phonetic-list .phonetic-btn[data-phon="${CSS.escape(char)}"]`)?.click();
 }
 
 function renderGrid(items, selector) {
@@ -211,6 +225,18 @@ function setupDetail() {
 
   // Related kanji click
   content.addEventListener("click", async (e) => {
+    const radLink = e.target.closest("[data-browse-radical]");
+    if (radLink) {
+      overlay.classList.add("hidden");
+      browseRadical(radLink.dataset.browseRadical);
+      return;
+    }
+    const phonLink = e.target.closest("[data-browse-phonetic]");
+    if (phonLink) {
+      overlay.classList.add("hidden");
+      browsePhonetic(phonLink.dataset.browsePhonetic);
+      return;
+    }
     const btn = e.target.closest(".related-btn");
     if (!btn) return;
     const char = btn.dataset.char;
@@ -237,7 +263,7 @@ async function showDetail(codepoint) {
     legendHtml += `
       <div class="legend-item">
         <span class="legend-swatch" style="background:var(--radical)"></span>
-        <span class="legend-char">${k.radical.char}</span>
+        <button class="legend-char legend-link" data-browse-radical="${k.radical.number}" title="Browse all ${k.radical.name} kanji">${k.radical.char}</button>
         <span class="legend-label">${k.radical.name} (radical)</span>
       </div>`;
   }
@@ -245,7 +271,7 @@ async function showDetail(codepoint) {
     legendHtml += `
       <div class="legend-item">
         <span class="legend-swatch" style="background:var(--phonetic)"></span>
-        <span class="legend-char">${k.phonetic.char}</span>
+        <button class="legend-char legend-link" data-browse-phonetic="${k.phonetic.char}" title="Browse all ${k.phonetic.reading} phonetic kanji">${k.phonetic.char}</button>
         <span class="legend-label">${k.phonetic.reading} "${k.phonetic.name}" (phonetic)</span>
       </div>`;
   }

@@ -555,6 +555,7 @@ def build_site(kanji_db, kanji_to_phonetic, phonetic_info, kanji_to_components):
             "type": info["type"],
             "count": len(info["kanji"]),
         })
+    phonetics_list.sort(key=lambda p: p["count"], reverse=True)
     phonetics_path = SITE_DATA_DIR / "phonetics.json"
     phonetics_path.write_text(json.dumps(phonetics_list, ensure_ascii=False), encoding="utf-8")
 
