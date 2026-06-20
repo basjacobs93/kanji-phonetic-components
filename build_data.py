@@ -219,11 +219,9 @@ def parse_phonetics():
             if len(cells) < 6:
                 continue
 
-            # First cell is the entry number (e.g. "1", "130", "R1", "R20")
+            # First cell is the entry number (e.g. "1", "130", "R1", "R20").
+            # Skip rows that are just anchors (no number).
             num_text = cells[0].get_text(strip=True)
-            if not num_text and not num_text.replace("R", "").isdigit():
-                continue
-            # Skip rows that are just anchors (no number)
             if not any(c.isdigit() for c in num_text):
                 continue
 
@@ -335,20 +333,37 @@ def expand_phonetics(kanji_db, kanji_to_phonetic, phonetic_info):
     print(f"  Added {added} kanji, total now {len(kanji_to_phonetic)}.")
 
 
-def find_radical_paths(svg_root):
-    """Find all path elements under the radical group."""
-    radical_paths = set()
-    for g in svg_root.iter(f"{{{KVG_NS}}}*"):
-        pass  # just to warm up namespace
-    # Search all g elements for kvg:radical="general"
+# KanjiVG can tag several groups with kvg:radical (e.g. both the traditional
+# and the Nelson radical). Prefer the standard classical radical when choosing.
+RADICAL_PRIORITY = ["general", "tradit", "nelson", "jis"]
+
+
+def find_radical_paths(svg_root, radical_char=None):
+    """Find the path ids of the single group representing the kanji's radical.
+
+    A kanji like 辞 tags both 舌 (nelson) and 辛 (tradit) with kvg:radical, which
+    would colour nearly the whole character. We pick one group: the one whose
+    element matches the kanji's classical radical char if known, otherwise the
+    highest-priority radical type.
+    """
+    candidates = []
     for g in svg_root.iter("{http://www.w3.org/2000/svg}g"):
-        radical_attr = g.get(f"{{{KVG_NS}}}radical")
-        if radical_attr:
-            for path in g.iter("{http://www.w3.org/2000/svg}path"):
-                path_id = path.get("id")
-                if path_id:
-                    radical_paths.add(path_id)
-    return radical_paths
+        rad_type = g.get(f"{{{KVG_NS}}}radical")
+        if rad_type:
+            candidates.append((g, rad_type, g.get(f"{{{KVG_NS}}}element")))
+    if not candidates:
+        return set()
+
+    chosen = None
+    if radical_char:
+        chosen = next((g for g, _, el in candidates if el == radical_char), None)
+    if chosen is None:
+        candidates.sort(
+            key=lambda c: RADICAL_PRIORITY.index(c[1]) if c[1] in RADICAL_PRIORITY else len(RADICAL_PRIORITY)
+        )
+        chosen = candidates[0][0]
+
+    return {p.get("id") for p in chosen.iter("{http://www.w3.org/2000/svg}path") if p.get("id")}
 
 
 def find_phonetic_paths(svg_root, phonetic_char):
@@ -380,16 +395,16 @@ def find_phonetic_paths(svg_root, phonetic_char):
     return phonetic_paths
 
 
-def colorize_svg(svg_path, phonetic_char=None):
+def colorize_svg(svg_path, phonetic_char=None, radical_char=None):
     """Parse a KanjiVG SVG and colorize strokes by component role.
 
-    Returns the modified SVG string, or None if parsing fails.
+    Returns the modified SVG string.
     """
     parser = etree.XMLParser(remove_blank_text=True)
     tree = etree.parse(str(svg_path), parser)
     root = tree.getroot()
 
-    radical_paths = find_radical_paths(root)
+    radical_paths = find_radical_paths(root, radical_char)
     phonetic_paths = find_phonetic_paths(root, phonetic_char) if phonetic_char else set()
 
     # If a path is in both radical and phonetic, phonetic wins (more informative)
@@ -442,19 +457,17 @@ def build_site(kanji_db, kanji_to_phonetic, phonetic_info, kanji_to_components):
             skipped += 1
             continue
 
-        # Colorize SVG
-        phonetic_char = kanji_to_phonetic.get(char)
-        svg_str = colorize_svg(svg_path, phonetic_char)
-        if svg_str is None:
-            skipped += 1
-            continue
-
         # Radical info
         rad_num = info.get("radical_number")
         rad_info = None
+        rad_char = None
         if rad_num and rad_num in KANGXI_RADICALS:
             rad_char, rad_name = KANGXI_RADICALS[rad_num]
             rad_info = {"number": rad_num, "char": rad_char, "name": rad_name}
+
+        # Colorize SVG
+        phonetic_char = kanji_to_phonetic.get(char)
+        svg_str = colorize_svg(svg_path, phonetic_char, rad_char)
 
         # Phonetic info
         phon_info = None

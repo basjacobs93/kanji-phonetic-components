@@ -257,7 +257,7 @@ async function showDetail(codepoint) {
   let metaHtml = '<div class="detail-meta">';
   if (k.strokes) metaHtml += `<span class="meta-tag">${k.strokes} strokes</span>`;
   if (k.grade) metaHtml += `<span class="meta-tag">Grade ${k.grade === 8 ? "Secondary" : k.grade === 9 ? "Jinmeiyou" : k.grade}</span>`;
-  if (k.jlpt) metaHtml += `<span class="meta-tag">JLPT N${5 - k.jlpt}</span>`;
+  if (k.jlpt) metaHtml += `<span class="meta-tag">JLPT N${k.jlpt + 1}</span>`;
   if (k.freq) metaHtml += `<span class="meta-tag">Freq #${k.freq}</span>`;
   metaHtml += "</div>";
 
