@@ -284,11 +284,31 @@ def parse_kradfile():
     return kanji_to_components
 
 
+def _series_romaji(reading):
+    """Extract comparable romaji from an EDRDG phonetic-series reading string.
+
+    Forms seen: "ケイ (KEI)", "HOU/BOU" (multiple), "~EN"/"~AN/EN" (rhyming
+    series, match by suffix). Returns (set_of_lowercase_romaji, is_rhyme).
+    """
+    is_rhyme = reading.strip().startswith("~")
+    # The romanised form in parentheses is canonical; otherwise it's romaji-only.
+    if "(" in reading and ")" in reading:
+        romaji = reading[reading.index("(") + 1 : reading.index(")")]
+    else:
+        romaji = reading
+    romaji = romaji.replace("~", "").strip().lower()
+    return {r.strip() for r in romaji.split("/") if r.strip()}, is_rhyme
+
+
 def expand_phonetics(kanji_db, kanji_to_phonetic, phonetic_info):
-    """Expand phonetic mappings using KanjiVG element decomposition + ON reading match.
+    """Expand phonetic mappings using KanjiVG element decomposition + reading match.
 
     The EDRDG page only lists a curated subset. We find additional kanji that
-    contain a phonetic component (per KanjiVG grouping) and share its ON reading.
+    contain a phonetic component (per KanjiVG grouping) and whose ON reading
+    matches the component's *phonetic series* reading. Matching against the
+    series reading (not the component character's own dictionary reading) is
+    essential: e.g. 糸 heads the KEI series but is itself read シ, so matching
+    on シ would wrongly tag every 糸-radical kanji (紙, 細, …) as KEI-phonetic.
     """
     print("Expanding phonetic mappings via KanjiVG elements...")
     kanjivg_dir = DATA_DIR / "kanjivg" / "kanji"
@@ -313,19 +333,27 @@ def expand_phonetics(kanji_db, kanji_to_phonetic, phonetic_info):
         if elements:
             kanji_elements[char] = elements
 
-    # For each phonetic component, find kanji containing it with matching ON reading
+    # For each phonetic series, find kanji containing the component whose ON
+    # reading matches the series reading (a phonetic component lends its sound,
+    # so it is never the kanji's own semantic radical — skip those).
     added = 0
     for comp_char, info in phonetic_info.items():
-        comp_on = set(kanji_db.get(comp_char, {}).get("on", []))
-        if not comp_on:
+        series, is_rhyme = _series_romaji(info["reading"])
+        if not series:
             continue
         for kanji, elements in kanji_elements.items():
             if kanji in kanji_to_phonetic:
                 continue
             if comp_char not in elements:
                 continue
-            kanji_on = set(kanji_db.get(kanji, {}).get("on", []))
-            if kanji_on & comp_on:
+            if KANGXI_RADICALS.get(kanji_db.get(kanji, {}).get("radical_number"), (None,))[0] == comp_char:
+                continue
+            kanji_romaji = {kana_to_romaji(r) for r in kanji_db.get(kanji, {}).get("on", [])}
+            if is_rhyme:
+                matched = any(kr.endswith(sr) for kr in kanji_romaji for sr in series)
+            else:
+                matched = bool(kanji_romaji & series)
+            if matched:
                 kanji_to_phonetic[kanji] = comp_char
                 info["kanji"].append(kanji)
                 added += 1
